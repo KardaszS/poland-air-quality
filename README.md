@@ -1,2 +1,2 @@
 # poland-air-quality
-Poland air quality monitor based on GIOŚ data
+Data pipeline & analysis of Polish air quality (GIOŚ + IMGW): did coal bans in Kraków and Warsaw clean the air?
