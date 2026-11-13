@@ -2,7 +2,7 @@
 
 **Did coal bans clean the air? An end-to-end data project on air quality in Polish cities.**
 
-> 🚧 **Work in progress.** Stage 1 (data pipeline, SQL analysis, dashboard) is being built in November–December 2026. See [Roadmap](#roadmap).
+> **Work in progress.** Stage 1 (data pipeline, SQL analysis, dashboard) is being built in November–December 2026. See [Roadmap](#roadmap).
 
 ## The question
 
