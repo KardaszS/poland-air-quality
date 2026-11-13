@@ -1,0 +1,12 @@
+pandas
+numpy
+requests
+openpyxl
+pyarrow
+sqlalchemy
+psycopg[binary]
+python-dotenv
+streamlit
+plotly
+pytest
+ruff
