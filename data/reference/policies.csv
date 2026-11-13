@@ -1,0 +1,14 @@
+city,name,effective_date,scope,source_url,role
+Kraków,Uchwała antysmogowa dla Krakowa (XXXII/452/16),2019-09-01,"zakaz paliw stałych",https://powietrze.malopolska.pl/antysmogowa/krakow/,treated
+Warszawa,Uchwała antysmogowa dla Mazowsza (162/17; zmiana 59/22),2023-10-01,"zakaz węgla kamiennego; drewno dozwolone",https://www.powietrze.mazovia.pl/uchwala-antysmogowa/co-musisz-wiedziec-o-uchwale-antysmogowej,treated
+Wrocław,Uchwała antysmogowa dla Gminy Wrocław,2018-07-01,"osobna uchwała dla miasta; zakaz paliw stałych od 2028-07-01; wykluczone z kontroli",https://www.wroclaw.pl/zielony-wroclaw/sejmik-przyjal-uchwaly-antysmogowe,excluded
+Katowice,Uchwała antysmogowa woj. śląskiego (V/36/1/2017),,"brak zakazu; tylko wymiana kotłów (pierwszy termin 2021-12-31)",https://powietrze.slaskie.pl/pl/uchwala-antysmogowa/uchwala-antysmogowa--praktyczne-zastosowanie-sie-do-zapisow-sposob-postepowania.html,control
+Białystok,brak,,"brak uchwały antysmogowej",https://www.gov.pl/web/klimat/uchwaly-antysmogowe,control
+Olsztyn,brak,,"brak uchwały antysmogowej",https://www.gov.pl/web/klimat/uchwaly-antysmogowe,control
+Poznań,Uchwała antysmogowa dla Miasta Poznania (XXXIX/942/17),2018-05-01,"osobna uchwała dla miasta; zakaz paliw stałych w dniach przekroczeń PM10; wykluczone z kontroli",https://bip.umww.pl/artykuly/2830675/pliki/20240327122722_zaczniknr1popaglomeracjapoznaska.pdf,excluded
+Łódź,Uchwała antysmogowa woj. łódzkiego (XLIV/548/17; zmiana L/597/22),,"brak zakazu; tylko wymiana kotłów (kopciuchy od 2025-01-01)",https://um.kutno.pl/print/pdf/node/2159,control
+Lublin,Uchwała antysmogowa woj. lubelskiego (XXIII/388/2021),,"brak zakazu; tylko wymiana kotłów",https://www.lubelskie.pl/file/2021/10/Uchwała-antysmogowa-webinarium-pdf.pdf,control
+Gdańsk,Uchwała antysmogowa dla miast woj. pomorskiego (309/XXIV/20),,"brak zakazu; tylko wymiana kotłów",https://powietrze.pomorskie.eu/wp-content/uploads/2021/09/uchwala-antysmogowa-dla-miast.pdf,control
+Bydgoszcz,Uchwała antysmogowa woj. kujawsko-pomorskiego,,"brak zakazu; tylko wymiana kotłów (kopciuchy od 2024-01-01)",https://www.gramwzielone.pl/?p=100986,control
+Rzeszów,Uchwała antysmogowa woj. podkarpackiego (LII/869/18),,"brak zakazu; tylko wymiana kotłów",https://www.bip.podkarpackie.pl/images/LII/869.pdf,control
+Szczecin,Uchwała antysmogowa woj. zachodniopomorskiego (XXXV/540/18),,"brak zakazu; tylko wymiana kotłów",https://inforlex.pl/download/akty_pdf,U83,2018,191,4984.pdf,control
