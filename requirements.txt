@@ -9,4 +9,5 @@ python-dotenv
 streamlit
 plotly
 pytest
+jupyter
 ruff

@@ -1,0 +1,16 @@
+station_code,old_code,intl_code,name,city,station_type,area_type,active_from,active_to,lat,lon
+KpBydWarszaw,KpBydgWarszawska,PL0064A,"Bydgoszcz, ul. Warszawska",Bydgoszcz,tło,miejski,1995-01-21,,53.134083,17.995708
+LbLubObywate,LbLublinWIOS,PL0507A,"Lublin, ul. Obywatelska",Lublin,tło,miejski,2010-05-21,,51.259431,22.569133
+LdLodzCzerni,LdLodzWIOSACzernik,PL0096A,"Łódź, ul. Czernika",Łódź,tło,miejski,2003-11-01,,51.75805,19.529786
+LdLodzGdansk,LdLodzWIOSAGdanska,PL0543A,"Łódź, ul. Gdańska",Łódź,tło,miejski,2012-01-01,,51.775378,19.450992
+MpKrakBujaka,MpKrakowWIOSBuja6119,PL0501A,"Kraków, ul. Bujaka",Kraków,tło,miejski,2010-01-01,,50.010575,19.949189
+MzWarKondrat,MzWarTarKondra,PL0143A,"Warszawa, ul. Kondratowicza",Warszawa,tło,miejski,2003-08-01,,52.290864,21.042458
+MzWarTolstoj,MzWarszBielany,PL0308A,"Warszawa, ul. Tołstoja",Warszawa,tło,miejski,2000-05-15,,52.285073,20.933018
+MzWarWokalna,MzWarszUrsynow,PL0141A,"Warszawa, ul. Wokalna",Warszawa,tło,miejski,2003-08-01,,52.160772,21.033819
+PdBialWarsza,PdBialyWarszawska,PL0496A,"Białystok, ul. Warszawska",Białystok,tło,miejski,2010-01-01,,53.129306,23.181744
+PkRzeszRejta,PkRzeszWIOSNoweMiasto,PL0495A,"Rzeszów, ul. Rejtana",Rzeszów,tło,miejski,2010-02-01,,50.024242,22.010575
+PmGdaLeczkow,"Pm.a08a, PmGdaLeczk08, PmGdaLecz08m",PL0052A,"Gdańsk, ul. Leczkowa",Gdańsk,tło,miejski,1998-10-01,,54.380279,18.620274
+PmGdaWyzwole,"Pm.a03a, PmGdaWyzwo03",PL0047A,"Gdańsk, ul. Wyzwolenia",Gdańsk,tło,miejski,1998-09-01,,54.400833,18.657497
+SlKatoKossut,SlKatowKato_kossu,PL0008A,"Katowice, ul. Kossutha",Katowice,tło,miejski,1992-01-01,,50.264611,18.975028
+WmOlsPuszkin,WmOlsztyWIOS_Puszkin,PL0175A,"Olsztyn, ul. Puszkina",Olsztyn,tło,miejski,2004-06-01,,53.789233,20.486075
+ZpSzczAndrze,"ZpSzczecin001, ZpSzczAndr01",PL0248A,"Szczecin, ul. Andrzejewskiego",Szczecin,tło,miejski,2004-12-31,,53.380975,14.663347
