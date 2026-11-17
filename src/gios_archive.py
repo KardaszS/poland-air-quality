@@ -23,3 +23,32 @@ def load_gios_hourly(path:Path, pollutant: str = "PM10") -> pd.DataFrame:
 
     return long[["station_code", "pollutant", "ts", "value"]]
 
+
+
+def build_gios_staging(raw_dir: Path = Path("data/raw/gios"),stations_path: Path = Path("data/reference/stations.csv"),
+                       output_path: Path = Path("data/staging/gios_hourly.parquet"),) -> pd.DataFrame:
+    frames = []
+    for year in range(2015, 2026):
+        frames.append(load_gios_hourly(raw_dir / str(year) / f"{year}_PM10_1g.xlsx"))
+    df = pd.concat(frames, ignore_index=True)
+
+    stations = pd.read_csv(stations_path)
+    pairs = stations[["station_code", "old_code"]].copy()
+    pairs["old_code"] = pairs["old_code"].str.split(", ")
+    pairs = pairs.explode("old_code")
+    code_map = dict(zip(pairs["old_code"], pairs["station_code"]))
+    df["station_code"] = df["station_code"].replace(code_map)
+    df = df[df["station_code"].isin(stations["station_code"])]
+
+    n_negative = (df["value"] < 0).sum()
+    print(f"Dropped {n_negative} negative values")
+    df = df[df["value"] >= 0]
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(output_path, index=False)
+    return df
+
+
+if __name__ == "__main__":
+    df = build_gios_staging()
+    print(df.shape)

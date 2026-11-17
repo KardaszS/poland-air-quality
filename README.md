@@ -79,7 +79,7 @@ I kept a station only if:
 
 1. it's an urban background station (station type: background, area type: urban), so it shows home heating rather than street traffic or industry,
 2. it measures PM10 every hour,
-3. its PM10 measurement point worked from 1 January 2015 or earlier until at least 1 January 2025,
+3. according to the GIOŚ metadata, its PM10 measurement point worked from 1 January 2015 or earlier until at least 1 January 2025 (the actual gaps are listed in [Data quality](#data-quality)),
 4. its series comes from that one station only. I don't glue stations together, because switching to a different station could look like a change in air quality.
 
 I started with 19 candidate stations and kept 15. These were dropped after I checked their coverage:
@@ -88,14 +88,16 @@ I started with 19 candidate stations and kept 15. These were dropped after I che
 |---|---|---|
 | Gdańsk | ul. Powstańców Warszawskich (`PmGdaPowWars`) | Hourly PM10 discontinued 2022-12-31, so no data for 2023–2026. Gdańsk is still covered by ul. Leczkowa and ul. Wyzwolenia. |
 | Lublin | ul. Śliwińskiego (`LbLubSliwins`) | PM10 measured only as daily (24-hour) values, no hourly series. Lublin is still covered by ul. Obywatelska. |
-| Łódź | ul. Legionów (`KOD_LODZ`) | PM10 measured only as daily (24-hour) values, no hourly series. Łódź is still covered by ul. Czernika and ul. Gdańska. |
-| Warszawa | ul. Krzywoń (`KOD_WARSZAWA`) | PM10 measured only as daily (24-hour) values, no hourly series. Warszawa is still covered by ul. Kondratowicza, ul. Tołstoja and ul. Wokalna. |
+| Łódź | ul. Legionów (`LdLodzLegion`) | PM10 measured only as daily (24-hour) values, no hourly series. Łódź is still covered by ul. Czernika and ul. Gdańska. |
+| Warszawa | ul. Krzywoń (`MzWarAKrzywo`) | PM10 measured only as daily (24-hour) values, no hourly series. Warszawa is still covered by ul. Kondratowicza, ul. Tołstoja and ul. Wokalna. |
 
 Some stations show up under old codes in older archive files. In my data, three stations used old codes in 2015–2021: `PmGdaLeczk08` → `PmGdaLeczkow`, `PmGdaWyzwo03` → `PmGdaWyzwole`, `ZpSzczAndr01` → `ZpSzczAndrze`. GIOŚ switched to the current codes during 2021, and the old and new codes never overlap in time. I keep all old codes in `stations.csv` (a station can have several, separated by commas) and map them to the current code while parsing.
 
 The full list of stations, with current and old GIOŚ codes, is in [`data/reference/stations.csv`](data/reference/stations.csv).
 
 ### Other rules
+
+Some of these rules describe the pipeline as I've planned it, and I'll implement them in the next steps.
 
 - I calculate a daily average only when at least 18 hourly values (75% of the day) are there.
 - Verified data win. Values from the GIOŚ yearly archive overwrite unverified API values for the same station and hour.
