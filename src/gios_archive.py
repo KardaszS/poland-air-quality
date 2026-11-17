@@ -16,7 +16,8 @@ def load_gios_hourly(path:Path, pollutant: str = "PM10") -> pd.DataFrame:
     data["ts"] = pd.to_datetime(data["ts"]).dt.round("h")
 
     long = data.melt(id_vars="ts", var_name="station_code", value_name="value")
-    long["value"] = pd.to_numeric(long["value"], errors="coerce")
+    long["value"] = pd.to_numeric( long["value"].astype(str).str.replace(",", ".", regex=False),
+    errors="coerce",)
     long = long.dropna(subset=["value"])
     long["pollutant"] = pollutant
 
