@@ -1,87 +1,150 @@
 # Poland Air Quality Monitor
 
-Work in progress. I'm building this project between November 2026 and spring 2027.
+Did coal bans clean the air? This is my end-to-end data project on air quality in Polish cities.
 
-## What this is about
+> Work in progress. I'm building Stage 1 (data pipeline, SQL analysis, dashboard) in November and December 2026. See the [Roadmap](#roadmap).
 
-Kraków banned heating with coal and wood in September 2019. Warsaw banned coal heating in October 2023. I want to find out whether the air actually got better in winter because of these bans, or whether it's just milder winters and changes that happened everywhere in Poland at the same time.
+## What this project is about
 
-To check this, I compare PM10 levels in Kraków and Warsaw with other Polish cities that didn't introduce similar bans, and I take weather into account (temperature, wind, rain). Along the way I also look at simpler things: which cities have the worst air, how many days a year go over the EU daily limit, and when smog is at its worst.
+I want to check whether the coal heating bans in Kraków and Warsaw really improved air quality.
 
-The data comes from GIOŚ (air quality) and IMGW (weather). I load it with Python into PostgreSQL, analyse it in SQL and pandas, and show the results in a Streamlit app. Later I plan to add a dbt warehouse, a next-day PM10 forecast, deployment on Google Cloud and an assistant that answers questions about the data by writing SQL.
+Since September 2019, people in Kraków can't heat their homes with coal or wood. Since October 2023, people in Warsaw can't heat with coal. The air in both cities is cleaner now than before the bans, but that alone doesn't prove the bans caused it. Winters may have been warmer or windier, and people all over Poland have been replacing old stoves, ban or no ban.
+
+So I compare Kraków and Warsaw with Polish cities that didn't have such a ban, for example Białystok, Łódź and Gdańsk, and I take the weather into account. If smog in Kraków dropped clearly more than in the other cities under similar weather, that's an argument that the ban worked. If it dropped about as much as everywhere else, the ban didn't change much.
+
+I look at PM10 dust from October to March, because that's when people heat their homes with stoves.
+
+Along the way, I also answer simpler questions: which cities have the worst air, how many days a year go over the EU daily limit, and how smog depends on the weather.
+
+## Architecture
 
 ```mermaid
 flowchart LR
-    A[GIOŚ archive<br/>hourly PM10, 2015–2025] --> P[Python ETL]
-    B[GIOŚ API<br/>recent data] --> P
+    A[GIOŚ yearly archive<br/>hourly PM10, 2015–2025] --> P[Python ETL<br/>pandas]
+    B[GIOŚ API v1<br/>recent data] --> P
     C[IMGW<br/>daily weather] --> P
     P --> D[(PostgreSQL)]
     D --> S[SQL analyses]
-    D --> E[Streamlit app]
+    D --> E[Streamlit dashboard]
 ```
 
-## Data sources
+Later I plan to add dbt warehouse layers with data-quality tests, a next-day PM10 forecast, Google Cloud (Cloud Storage, BigQuery, Cloud Run) and an LLM assistant that answers questions about the data by writing SQL.
 
-| Source | What I use |
-|---|---|
-| [GIOŚ](https://powietrze.gios.gov.pl/) yearly archive | Verified hourly PM10, 2015–2025, and station metadata |
-| [GIOŚ API v1](https://api.gios.gov.pl/pjp-api/swagger-ui/) | Recent (not yet verified) measurements |
-| [IMGW-PIB](https://danepubliczne.imgw.pl/) | Daily weather data |
+## Data sources and licenses
 
-Air-quality data: Główny Inspektorat Ochrony Środowiska (GIOŚ). Weather data: Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy (IMGW-PIB), processed by me. Raw data files are not stored in this repo.
+| Source | What it gives me | What I use it for |
+|---|---|---|
+| [GIOŚ, Główny Inspektorat Ochrony Środowiska](https://powietrze.gios.gov.pl/) | the verified yearly archive of hourly measurements and station metadata | PM10 history for 2015–2025 |
+| [GIOŚ API v1](https://api.gios.gov.pl/pjp-api/swagger-ui/) | current measurements, not verified yet | daily updates |
+| [IMGW-PIB, Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy](https://danepubliczne.imgw.pl/) | daily weather from synoptic stations | weather controls |
+
+The air-quality data come from Główny Inspektorat Ochrony Środowiska (GIOŚ). The weather data come from Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy (IMGW-PIB), and I processed them. I don't store raw data in this repo (see [How to run](#how-to-run)).
 
 ## Decisions about the data
 
-### Why only PM10
+### Why I only use PM10
 
-I wanted to use PM2.5 as well, but the hourly PM2.5 series have too many gaps:
+Hourly PM2.5 isn't available consistently across cities and years:
 
 | City (station) | Hourly PM2.5 |
 |---|---|
-| Kraków | stopped on 2019-12-31, so there is almost nothing after the 2019 ban |
+| Kraków | stopped on 2019-12-31, so there's almost nothing after the 2019 ban |
 | Białystok | only since 2025-10-24 |
 | Rzeszów | none |
 | Gdańsk (Wyzwolenia) | since 2021 |
 | Warszawa (Tołstoja) | since 2018 |
 | Łódź (Gdańska) | stopped in 2019 |
 
-PM10 is measured continuously at all the stations I picked, and there is an EU daily limit for it (50 µg/m³, no more than 35 days a year). So everything in this project is based on PM10.
+PM10 is measured every hour at all the stations I picked, and it has an EU daily limit, so all my analyses use PM10.
+
+### How I chose cities
+
+| Role | Cities | Why |
+|---|---|---|
+| Treated | Kraków, Warszawa | Kraków has banned all solid fuels (coal and wood) since 2019-09-01. Warszawa has banned hard coal since 2023-10-01, but wood is still allowed, so its ban is weaker than Kraków's. |
+| Control | Białystok, Bydgoszcz, Gdańsk, Katowice, Lublin, Łódź, Olsztyn, Rzeszów, Szczecin | None of them had a city-level ban on coal or solid fuels in 2015–2026. Their regional anti-smog resolutions only set deadlines for replacing old boilers. Podlaskie (Białystok) and Warmińsko-Mazurskie (Olsztyn) have no anti-smog resolution at all. |
+| Excluded | Wrocław, Poznań | Both have their own, stricter city-level resolutions, so they aren't clean controls. |
+
+Things I keep in mind for the policy analysis:
+
+- No control city is perfect. Most regions have boiler-replacement deadlines, and the national "Czyste Powietrze" programme runs everywhere. Katowice has some of the earliest deadlines (from 2021) and Łódź banned the oldest boilers from 2025, so I check their trends separately.
+- Both bans were adopted long before they took effect. Kraków passed its resolution in 2016 and the ban started in 2019. Warsaw passed its amendment in April 2022 and the ban started in October 2023. Part of the effect may show up before the official date.
+- I have nine control candidates. I'll pick the final eight once the policy analysis is set up, and Katowice is the first one I'd drop.
+
+The sources for each regulation are in [`data/reference/policies.csv`](data/reference/policies.csv).
 
 ### How I chose stations
 
-I kept stations that:
+I kept a station only if:
 
-1. are urban background stations, so they mostly show home heating, not traffic or industry,
-2. measure PM10 every hour,
-3. have measured PM10 from 1 January 2015 or earlier until at least 1 January 2025.
+1. it's an urban background station (station type: background, area type: urban), so it shows home heating rather than street traffic or industry,
+2. it measures PM10 every hour,
+3. its PM10 measurement point worked from 1 January 2015 or earlier until at least 1 January 2025,
+4. its series comes from that one station only. I don't glue stations together, because switching to a different station could look like a change in air quality.
 
-I also don't glue together data from different stations. If one station closes and another opens, the city average can jump just because the station changed, and that could look like the effect of a ban.
+I started with 19 candidate stations and kept 15. These were dropped after I checked their coverage:
 
-Out of 19 candidate stations I kept 15. These four were dropped:
-
-| City | Station | Why |
+| City | Station | Why it was excluded |
 |---|---|---|
-| Gdańsk | ul. Powstańców Warszawy (`PmGdaPowWars`) | hourly PM10 stopped on 2022-12-31; Gdańsk still has two other stations |
-| Lublin | ul. Śliwińskiego (`LbLubSliwins`) | TODO; Lublin still has other stations |
-| Łódź | TODO (`TODO`) | TODO; Łódź still has other stations |
-| Warszawa | TODO (`TODO`) | TODO; Warsaw still has other stations |
+| Gdańsk | ul. Powstańców Warszawskich (`PmGdaPowWars`) | Hourly PM10 discontinued 2022-12-31, so no data for 2023–2026. Gdańsk is still covered by ul. Leczkowa and ul. Wyzwolenia. |
+| Lublin | ul. Śliwińskiego (`LbLubSliwins`) | PM10 measured only as daily (24-hour) values, no hourly series. Lublin is still covered by ul. Obywatelska. |
+| Łódź | ul. Legionów (`KOD_LODZ`) | PM10 measured only as daily (24-hour) values, no hourly series. Łódź is still covered by ul. Czernika and ul. Gdańska. |
+| Warszawa | ul. Krzywoń (`KOD_WARSZAWA`) | PM10 measured only as daily (24-hour) values, no hourly series. Warszawa is still covered by ul. Kondratowicza, ul. Tołstoja and ul. Wokalna. |
 
-Some stations have several old codes (for example Gdańsk, ul. Leczkowa: `Pm.a08a`, `PmGdaLeczk08`, `PmGdaLecz08m`), because GIOŚ changed its coding more than once. I keep all old codes in `stations.csv` and map them to the current code when loading older files.
+Some stations show up under old codes in older archive files. In my data, three stations used old codes in 2015–2021: `PmGdaLeczk08` → `PmGdaLeczkow`, `PmGdaWyzwo03` → `PmGdaWyzwole`, `ZpSzczAndr01` → `ZpSzczAndrze`. GIOŚ switched to the current codes during 2021, and the old and new codes never overlap in time. I keep all old codes in `stations.csv` (a station can have several, separated by commas) and map them to the current code while parsing.
 
-The full list of stations is in [`data/reference/stations.csv`](data/reference/stations.csv), and the anti-smog rules I checked for each city, with sources, are in [`data/reference/policies.csv`](data/reference/policies.csv).
+The full list of stations, with current and old GIOŚ codes, is in [`data/reference/stations.csv`](data/reference/stations.csv).
 
 ### Other rules
 
-- A daily average is calculated only if at least 18 hourly values are available for that day.
-- Verified data from the yearly archive overwrite unverified API data for the same station and hour.
-- Running the load twice doesn't create duplicates.
-- I fix errors in the source data openly. For example, the GIOŚ metadata file has a closing date typed as `31.12.20025`. I correct it to `31.12.2025` in the code instead of turning it into an empty value, because an empty closing date would make a closed station look like it's still working.
+- I calculate a daily average only when at least 18 hourly values (75% of the day) are there.
+- Verified data win. Values from the GIOŚ yearly archive overwrite unverified API values for the same station and hour.
+- Loading is idempotent. If I run the pipeline twice, I don't get duplicates (upsert on station, pollutant and timestamp).
+- I fix problems in the source data openly, not silently. The GIOŚ metadata file has a closing date typed as `31.12.20025`. I correct it to `31.12.2025` in code instead of turning it into an empty value, because an empty closing date would make a closed measurement point look like it's still working.
+- The archive layout changes between years. The header block above the data has 3 rows in 2015 and 6 rows from 2016 on, and the sixth row has a different label in some years ("Czas pomiaru" in 2016 and 2018, "Kod stanowiska" in the others). So my parser looks for the "Kod stacji" row and keeps only the rows whose first cell is a timestamp, instead of assuming a fixed number of header rows.
+- Timestamps mark the end of the hour. Each year starts at 01:00 on 1 January, so the value stamped 01:00 covers 00:00–01:00, and the value stamped 00:00 on 1 January belongs to the previous year. Excel stores times with small floating-point errors (for example `03:00:00.005`), so I round timestamps to the full hour.
+- The number format changes between years. In the 2016–2018 files, values are stored as text with a decimal comma (for example `"66,1195"`), while other years store them as numbers. My parser turns commas into dots before converting to numbers. Without this step, three years of data were silently dropped.
+- I don't fill gaps with other stations. When a selected station has a gap, I don't replace it with another station from the same city, even if one exists (for example `KpBydPlPozna` in Bydgoszcz or `LdLodzJanPaw` in Łódź in 2022).
+- I reject negative values. There were none in the verified archive, but the check stays in the pipeline for the unverified API data.
+
+## Data quality
+
+After parsing the GIOŚ archive (13.9 million hourly PM10 values from all Polish stations in 2015–2025), mapping old codes and filtering to my 15 stations, I have 1,329,333 hourly values. That's about 92% of all possible station-hours, or 97% if I leave out the known gaps listed below. There are no duplicate station-hours and no negative values. Most station-years have 8,100–8,780 of 8,760 hours.
+
+Known gaps (no data under any code in the archive):
+
+| Station | Missing period | Impact |
+|---|---|---|
+| Warszawa, ul. Tołstoja (`MzWarTolstoj`) | 2015–2017 | Warszawa is covered by the two other stations |
+| Warszawa, ul. Kondratowicza (`MzWarKondrat`) | 2020–2023 | The gap ends just before the October 2023 ban, so the set of Warsaw stations changes around the ban date. For the Warsaw policy analysis I'll only use stations with continuous data. |
+| Bydgoszcz, ul. Warszawska (`KpBydWarszaw`) | 2022 | It's the only station in Bydgoszcz, so the city has no data for 2022 |
+| Łódź, ul. Gdańska (`LdLodzGdansk`) | 2022 | Łódź is covered by ul. Czernika |
+
+The station metadata listed all of these measurement points as active the whole time. I only found the gaps by counting hours per station and year in the actual data.
+
+## Repository structure
+
+```text
+poland-air-quality/
+├── data/                  # not tracked, except data/reference/
+│   ├── reference/         # stations.csv, policies.csv
+│   ├── raw/gios/<year>/   # GIOŚ yearly archives (downloaded manually)
+│   └── staging/           # parsed data (gios_hourly.parquet)
+├── docs/                  # diagrams, screenshots, report
+├── notebooks/             # exploration and analysis
+├── sql/
+│   ├── ddl/               # table and view definitions
+│   └── analysis/          # analytical queries, one question per file
+├── src/                   # ETL code (GIOŚ archive, GIOŚ API, IMGW, loading)
+├── app/                   # Streamlit dashboard
+└── tests/
+```
 
 ## How to run
 
-This section will grow as the pipeline gets built.
+I'll fill in this section as I build the pipeline.
 
-Raw data are downloaded by hand from the [GIOŚ archive](https://powietrze.gios.gov.pl/pjp/archives): one ZIP per year (2015–2025), unpacked to `data/raw/gios/<year>/`. Some archives unpack to a folder called "Wyniki pomiarów z <year> roku", so rename it to just `<year>`. I only use the hourly PM10 files (`<year>_PM10_1g.xlsx`).
+I download the raw data by hand from the [GIOŚ archive](https://powietrze.gios.gov.pl/pjp/archives): one ZIP per year (2015–2025), unpacked to `data/raw/gios/<year>/`. Some archives unpack to a folder named "Wyniki pomiarów z <year> roku" instead of just the year, so rename it to `<year>`. I only use the hourly PM10 files (`<year>_PM10_1g.xlsx`). The parsed and filtered data are saved to `data/staging/gios_hourly.parquet`.
 
 ```bash
 git clone https://github.com/KardaszS/poland-air-quality.git
@@ -92,35 +155,35 @@ pip install -r requirements.txt
 cp .env.example .env   # then set DATABASE_URL
 ```
 
-## Progress
+## Roadmap
 
 - [x] Repo and environment setup
 - [x] Station coverage check and selection (PM10)
-- [x] Download the GIOŚ yearly archive 2015–2025
-- [ ] Load the archive into PostgreSQL
+- [x] Download and parse GIOŚ archive 2015–2025 (hourly PM10, 15 stations)
+- [ ] Load GIOŚ data into PostgreSQL
 - [ ] Load IMGW weather data and match weather stations to air-quality stations
-- [ ] SQL analyses: limit exceedances, trends, seasons, weather
-- [ ] Daily update from the GIOŚ API (GitHub Actions)
-- [ ] Streamlit app
-- [ ] Comparing Kraków and Warsaw with the other cities, taking weather into account
+- [ ] SQL analyses (exceedance days, trends, seasons, weather)
+- [ ] Daily load from the GIOŚ API (GitHub Actions)
+- [ ] Streamlit dashboard
+- [ ] Ban analysis: compare Kraków and Warsaw with control cities, taking weather into account
 - [ ] Short report for non-technical readers
-- [ ] dbt models and data tests
+- [ ] dbt warehouse layers and data-quality tests
 - [ ] Next-day PM10 forecast
-- [ ] Google Cloud deployment
-- [ ] Assistant that answers questions about the data using SQL
+- [ ] Deployment on Google Cloud
+- [ ] LLM assistant (questions in plain language → SQL)
 
-## Results
+## Key findings
 
-Coming in December 2026.
+I'll add them after Stage 1, in December 2026.
 
-## Related project
+## Related work
 
-[krakow-air-quality](https://github.com/PortfolioKarolGucwa/krakow-air-quality) looks at the 2019 ban in Kraków only. I wanted to go further: compare several cities, include the 2023 ban in Warsaw, and check the results against cities without bans.
+[krakow-air-quality](https://github.com/PortfolioKarolGucwa/krakow-air-quality) looks at the 2019 ban in Kraków on its own. I'm taking the question further: several cities, the 2023 ban in Warsaw too, and a comparison with cities that had no ban.
 
-## About me
+## Author
 
 Szymon Kardasz, Computer Science student at Białystok University of Technology. [GitHub](https://github.com/KardaszS)
 
 ## License
 
-The code is under the MIT license (see [LICENSE](LICENSE)). The data stay under the terms of GIOŚ and IMGW-PIB.
+My code is under the MIT license (see [LICENSE](LICENSE)). The data stay under the terms of their original providers, GIOŚ and IMGW-PIB.
