@@ -97,11 +97,10 @@ The full list of stations, with current and old GIOŚ codes, is in [`data/refere
 
 ### Other rules
 
-Some of these rules describe the pipeline as I've planned it, and I'll implement them in the next steps.
-
-- I calculate a daily average only when at least 18 hourly values (75% of the day) are there.
-- Verified data win. Values from the GIOŚ yearly archive overwrite unverified API values for the same station and hour.
-- Loading is idempotent. If I run the pipeline twice, I don't get duplicates (upsert on station, pollutant and timestamp).
+- I will calculate a daily average only when at least 18 hourly values (75% of the day) are there (planned for the SQL views in week 2).
+- Verified data win. Values from the GIOŚ yearly archive overwrite unverified API values for the same station and hour, but API values never overwrite archive values.
+- Loading is idempotent. Data go through a staging table and an upsert on station, pollutant and timestamp, so running the load twice doesn't create duplicates. I checked this: after a second run the table still has 1,329,333 rows.
+- Every load is logged in the `etl_run` table with its start and end time, status, number of rows and any error, so I can see whether the pipeline ran and how much it loaded.
 - I fix problems in the source data openly, not silently. The GIOŚ metadata file has a closing date typed as `31.12.20025`. I correct it to `31.12.2025` in code instead of turning it into an empty value, because an empty closing date would make a closed measurement point look like it's still working.
 - The archive layout changes between years. The header block above the data has 3 rows in 2015 and 6 rows from 2016 on, and the sixth row has a different label in some years ("Czas pomiaru" in 2016 and 2018, "Kod stanowiska" in the others). So my parser looks for the "Kod stacji" row and keeps only the rows whose first cell is a timestamp, instead of assuming a fixed number of header rows.
 - Timestamps mark the end of the hour. Each year starts at 01:00 on 1 January, so the value stamped 01:00 covers 00:00–01:00, and the value stamped 00:00 on 1 January belongs to the previous year. Excel stores times with small floating-point errors (for example `03:00:00.005`), so I round timestamps to the full hour.
@@ -124,6 +123,21 @@ Known gaps (no data under any code in the archive):
 
 The station metadata listed all of these measurement points as active the whole time. I only found the gaps by counting hours per station and year in the actual data.
 
+## Data model
+
+The PostgreSQL schema is in [`sql/ddl/001_tables.sql`](sql/ddl/001_tables.sql).
+
+| Table | One row is | Filled so far |
+|---|---|---|
+| `station` | one GIOŚ station | yes, 15 stations |
+| `policy` | one city's anti-smog regulation | yes, 13 cities |
+| `measurement_hourly` | one station × pollutant × hour | yes, 1,329,333 PM10 values (2015–2025) |
+| `etl_run` | one pipeline run | yes |
+| `sensor` | one API sensor | week 3 (API) |
+| `weather_station`, `weather_daily`, `station_weather_map` | IMGW weather data | week 2 |
+
+Measurements reference stations through a foreign key, and checks in the schema reject negative values and unknown pollutants.
+
 ## Repository structure
 
 ```text
@@ -135,9 +149,11 @@ poland-air-quality/
 ├── docs/                  # diagrams, screenshots, report
 ├── notebooks/             # exploration and analysis
 ├── sql/
-│   ├── ddl/               # table and view definitions
+│   ├── ddl/               # 001_tables.sql (database schema)
 │   └── analysis/          # analytical queries, one question per file
-├── src/                   # ETL code (GIOŚ archive, GIOŚ API, IMGW, loading)
+├── src/
+│   ├── gios_archive.py    # parse the GIOŚ yearly archive into Parquet
+│   └── load.py            # load stations, policies and measurements into PostgreSQL
 ├── app/                   # Streamlit dashboard
 └── tests/
 ```
@@ -145,8 +161,6 @@ poland-air-quality/
 ## How to run
 
 I'll fill in this section as I build the pipeline.
-
-I download the raw data by hand from the [GIOŚ archive](https://powietrze.gios.gov.pl/pjp/archives): one ZIP per year (2015–2025), unpacked to `data/raw/gios/<year>/`. Some archives unpack to a folder named "Wyniki pomiarów z <year> roku" instead of just the year, so rename it to `<year>`. I only use the hourly PM10 files (`<year>_PM10_1g.xlsx`). The parsed and filtered data are saved to `data/staging/gios_hourly.parquet`.
 
 ```bash
 git clone https://github.com/KardaszS/poland-air-quality.git
@@ -157,12 +171,28 @@ pip install -r requirements.txt
 cp .env.example .env   # then set DATABASE_URL
 ```
 
+I download the raw data by hand from the [GIOŚ archive](https://powietrze.gios.gov.pl/pjp/archives): one ZIP per year (2015–2025), unpacked to `data/raw/gios/<year>/`. Some archives unpack to a folder named "Wyniki pomiarów z <year> roku" instead of just the year, so rename it to `<year>`. I only use the hourly PM10 files (`<year>_PM10_1g.xlsx`). The parsed and filtered data are saved to `data/staging/gios_hourly.parquet`.
+
+To parse the archive and build the staging file:
+
+```bash
+python -m src.gios_archive
+```
+
+To create the database tables and load stations, policies and measurements:
+
+```bash
+createdb airq
+psql airq -f sql/ddl/001_tables.sql
+python -m src.load
+```
+
 ## Roadmap
 
 - [x] Repo and environment setup
 - [x] Station coverage check and selection (PM10)
 - [x] Download and parse GIOŚ archive 2015–2025 (hourly PM10, 15 stations)
-- [ ] Load GIOŚ data into PostgreSQL
+- [x] Load GIOŚ data into PostgreSQL
 - [ ] Load IMGW weather data and match weather stations to air-quality stations
 - [ ] SQL analyses (exceedance days, trends, seasons, weather)
 - [ ] Daily load from the GIOŚ API (GitHub Actions)
