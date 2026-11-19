@@ -123,6 +123,8 @@ Known gaps (no data under any code in the archive):
 
 The station metadata listed all of these measurement points as active the whole time. I only found the gaps by counting hours per station and year in the actual data.
 
+After loading, I checked the database against the staging file. The number of hours per station and year matches exactly ([`sql/analysis/01_completeness.sql`](sql/analysis/01_completeness.sql)). Hourly PM10 values range from 0 to 672 µg/m³, with an average of 25 µg/m³. The maximum is high but plausible for a winter smog episode.
+
 ## Data model
 
 The PostgreSQL schema is in [`sql/ddl/001_tables.sql`](sql/ddl/001_tables.sql).
