@@ -6,7 +6,7 @@ import pandas as pd
 import requests
 
 BASE_URL = ("https://danepubliczne.imgw.pl/data/dane_pomiarowo_obserwacyjne/"
-            "dane_meteorologiczne/dobowe/synop")
+            "dane_meteorologiczne")
 
 # Column names from IMGW format descriptions (s_d_format.txt, s_d_t_format.txt)
 S_D_COLUMNS = [
@@ -44,8 +44,10 @@ def download_synop(
     years: range = range(2015, 2026),
     stations_path: Path = Path("data/reference/weather_stations.csv"),
     raw_dir: Path = Path("data/raw/imgw"),
+    interval: str = "dobowe",
 ) -> None:
-    """Download and unzip daily synoptic data for the selected IMGW stations."""
+    """Download and unzip IMGW synoptic data for the selected stations.
+    interval: "dobowe" (daily) or "terminowe" (hourly)."""
     codes = pd.read_csv(stations_path, dtype=str)["file_code"]
 
     for year in years:
@@ -54,9 +56,10 @@ def download_synop(
 
         for code in codes:
             name = f"{year}_{code}_s.zip"
-            response = requests.get(f"{BASE_URL}/{year}/{name}", timeout=30)
+            url = f"{BASE_URL}/{interval}/synop/{year}/{name}"
+            response = requests.get(url, timeout=30)
             if response.status_code != 200:
-                print(f"Missing: {name}")
+                print(f"Missing: {url}")
                 continue
 
             zip_path = year_dir / name
