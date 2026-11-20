@@ -22,7 +22,7 @@ Along the way, I also answer simpler questions: which cities have the worst air,
 flowchart LR
     A[GIOŚ yearly archive<br/>hourly PM10, 2015–2025] --> P[Python ETL<br/>pandas]
     B[GIOŚ API v1<br/>recent data] --> P
-    C[IMGW<br/>daily weather] --> P
+    C[IMGW<br/>daily + hourly weather] --> P
     P --> D[(PostgreSQL)]
     D --> S[SQL analyses]
     D --> E[Streamlit dashboard]
@@ -36,7 +36,7 @@ Later I plan to add dbt warehouse layers with data-quality tests, a next-day PM1
 |---|---|---|
 | [GIOŚ, Główny Inspektorat Ochrony Środowiska](https://powietrze.gios.gov.pl/) | the verified yearly archive of hourly measurements and station metadata | PM10 history for 2015–2025 |
 | [GIOŚ API v1](https://api.gios.gov.pl/pjp-api/swagger-ui/) | current measurements, not verified yet | daily updates |
-| [IMGW-PIB, Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy](https://danepubliczne.imgw.pl/) | daily weather from synoptic stations | weather controls |
+| [IMGW-PIB, Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy](https://danepubliczne.imgw.pl/) | daily and hourly weather from synoptic stations | weather controls |
 
 The air-quality data come from Główny Inspektorat Ochrony Środowiska (GIOŚ). The weather data come from Instytut Meteorologii i Gospodarki Wodnej – Państwowy Instytut Badawczy (IMGW-PIB), and I processed them. I don't store raw data in this repo (see [How to run](#how-to-run)).
 
@@ -95,6 +95,34 @@ Some stations show up under old codes in older archive files. In my data, three 
 
 The full list of stations, with current and old GIOŚ codes, is in [`data/reference/stations.csv`](data/reference/stations.csv).
 
+### Weather data (IMGW)
+
+I use one IMGW synoptic station per city, because synoptic stations measure all the variables I need (temperature, wind, precipitation, snow depth, humidity) and their data are quality-checked.
+
+| City | IMGW station | Note |
+|---|---|---|
+| Białystok | Białystok | |
+| Bydgoszcz | Toruń | The Bydgoszcz synoptic station has no daily data, so I use Toruń (about 45 km away) |
+| Gdańsk | Gdańsk-Świbno | The only Gdańsk synoptic station with daily data; it lies on the coast, east of the city |
+| Katowice | Katowice-Muchowiec | |
+| Kraków | Kraków-Balice | |
+| Lublin | Lublin-Radawiec | |
+| Łódź | Łódź | |
+| Olsztyn | Olsztyn | |
+| Rzeszów | Rzeszów-Jasionka | |
+| Szczecin | Szczecin | |
+| Warszawa | Warszawa-Okęcie | |
+
+The station list is in [`data/reference/weather_stations.csv`](data/reference/weather_stations.csv).
+
+Things I found in the IMGW data:
+
+- IMGW stopped publishing daily wind and humidity (`s_d_t` files) after June 2024. For July 2024 – December 2025 I compute daily means from the hourly synoptic data of the same stations, using only days with at least 18 valid hours. I checked this against the official daily means for January–June 2024, when both sources exist: the mean absolute difference is 0.12 m/s for wind speed and 0.6 percentage points for humidity (Białystok, 182 days).
+- From 2024 on, IMGW leaves the value empty on days without precipitation or snow cover (status 9, "no phenomenon"), while earlier years store 0. The parser sets status 9 to 0 for all years, and status 8 ("no measurement") to missing.
+- Snow depth has gaps at some stations: Olsztyn has no snow data for 2015–2016 and part of 2017, and Gdańsk-Świbno has irregular snow measurements in 2023–2025 (about half of the days missing in 2024–2025). Missing snow depth stays empty rather than being set to 0.
+- Toruń and Gdańsk-Świbno have no daily records for 23–24 October 2024.
+- Relative humidity is capped at 100% (two days were slightly above because of rounding in the source).
+
 ### Other rules
 
 - I will calculate a daily average only when at least 18 hourly values (75% of the day) are there (planned for the SQL views in week 2).
@@ -136,7 +164,8 @@ The PostgreSQL schema is in [`sql/ddl/001_tables.sql`](sql/ddl/001_tables.sql).
 | `measurement_hourly` | one station × pollutant × hour | yes, 1,329,333 PM10 values (2015–2025) |
 | `etl_run` | one pipeline run | yes |
 | `sensor` | one API sensor | week 3 (API) |
-| `weather_station`, `weather_daily`, `station_weather_map` | IMGW weather data | week 2 |
+| `weather_station`, `weather_daily` | one IMGW station / one station × day | yes, 11 stations and 44,194 station-days (2015–2025) |
+| `station_weather_map` | one GIOŚ station mapped to a weather station | week 2 |
 
 Measurements reference stations through a foreign key, and checks in the schema reject negative values and unknown pollutants.
 
@@ -144,19 +173,22 @@ Measurements reference stations through a foreign key, and checks in the schema 
 
 ```text
 poland-air-quality/
-├── data/                  # not tracked, except data/reference/
-│   ├── reference/         # stations.csv, policies.csv
-│   ├── raw/gios/<year>/   # GIOŚ yearly archives (downloaded manually)
-│   └── staging/           # parsed data (gios_hourly.parquet)
-├── docs/                  # diagrams, screenshots, report
-├── notebooks/             # exploration and analysis
+├── data/                        # not tracked, except data/reference/
+│   ├── reference/               # stations.csv, policies.csv, weather_stations.csv
+│   ├── raw/gios/<year>/         # GIOŚ yearly archives (downloaded manually)
+│   ├── raw/imgw/<year>/         # IMGW daily synoptic data
+│   ├── raw/imgw_hourly/<year>/  # IMGW hourly synoptic data (2024–2025)
+│   └── staging/                 # gios_hourly.parquet, imgw_daily.parquet
+├── docs/                        # diagrams, screenshots, report
+├── notebooks/                   # exploration and analysis
 ├── sql/
-│   ├── ddl/               # 001_tables.sql (database schema)
-│   └── analysis/          # analytical queries, one question per file
+│   ├── ddl/                     # 001_tables.sql (database schema)
+│   └── analysis/                # analytical queries, one question per file
 ├── src/
-│   ├── gios_archive.py    # parse the GIOŚ yearly archive into Parquet
-│   └── load.py            # load stations, policies and measurements into PostgreSQL
-├── app/                   # Streamlit dashboard
+│   ├── gios_archive.py          # parse the GIOŚ yearly archive into Parquet
+│   ├── imgw.py                  # download and parse IMGW weather data into Parquet
+│   └── load.py                  # load stations, policies, measurements and weather into PostgreSQL
+├── app/                         # Streamlit dashboard
 └── tests/
 ```
 
@@ -181,7 +213,15 @@ To parse the archive and build the staging file:
 python -m src.gios_archive
 ```
 
-To create the database tables and load stations, policies and measurements:
+To download and parse the IMGW weather data:
+
+```bash
+python -c "from src.imgw import download_synop; download_synop()"
+python -c "from pathlib import Path; from src.imgw import download_synop; download_synop(years=range(2024, 2026), raw_dir=Path('data/raw/imgw_hourly'), interval='terminowe')"
+python -m src.imgw
+```
+
+To create the database tables and load stations, policies, measurements and weather:
 
 ```bash
 createdb airq
@@ -195,7 +235,8 @@ python -m src.load
 - [x] Station coverage check and selection (PM10)
 - [x] Download and parse GIOŚ archive 2015–2025 (hourly PM10, 15 stations)
 - [x] Load GIOŚ data into PostgreSQL
-- [ ] Load IMGW weather data and match weather stations to air-quality stations
+- [x] Load IMGW weather data
+- [ ] Match weather stations to air-quality stations
 - [ ] SQL analyses (exceedance days, trends, seasons, weather)
 - [ ] Daily load from the GIOŚ API (GitHub Actions)
 - [ ] Streamlit dashboard
