@@ -44,6 +44,10 @@ S_T_VALUES = {"FWR": "WFWR", "WLGW": "WWLGW"}
 KEYS = ["NSP", "ROK", "MC", "DZ"]
 MIN_HOURS = 18  # minimum valid hours for a daily mean
 
+# IMGW status codes
+NO_MEASUREMENT = 8  # value is unknown -> missing
+NO_PHENOMENON = 9   # phenomenon did not occur (e.g. no rain) -> 0
+
 RENAME = {
     "NSP": "weather_station_code",
     "STD": "t_mean",
@@ -84,18 +88,24 @@ def download_synop(
                 archive.extractall(year_dir)
 
 
+def apply_status(df: pd.DataFrame, values: dict[str, str]) -> pd.DataFrame:
+    """Set values with status 8 to missing and values with status 9 to 0."""
+    for val, status in values.items():
+        df.loc[df[status] == NO_MEASUREMENT, val] = np.nan
+        df.loc[df[status] == NO_PHENOMENON, val] = 0
+    return df
+
+
 def read_synop_daily(s_d_path, s_d_t_path) -> pd.DataFrame:
     """Read one station-year of IMGW daily synoptic data (main + additional file).
     If the additional file is missing, wind and humidity are left empty."""
     s_d = pd.read_csv(s_d_path, encoding="cp1250", header=None, names=S_D_COLUMNS)
-    for val, status in S_D_VALUES.items():
-        s_d.loc[s_d[status] == 8, val] = np.nan
+    s_d = apply_status(s_d, S_D_VALUES)
     s_d = s_d[KEYS + list(S_D_VALUES)]
 
     if Path(s_d_t_path).exists():
         s_d_t = pd.read_csv(s_d_t_path, encoding="cp1250", header=None, names=S_D_T_COLUMNS)
-        for val, status in S_D_T_VALUES.items():
-            s_d_t.loc[s_d_t[status] == 8, val] = np.nan
+        s_d_t = apply_status(s_d_t, S_D_T_VALUES)
         df = s_d.merge(s_d_t[KEYS + list(S_D_T_VALUES)], on=KEYS, how="left")
     else:
         df = s_d.copy()
@@ -115,8 +125,7 @@ def read_synop_hourly(s_t_path: Path) -> pd.DataFrame:
     usecols = KEYS + list(S_T_VALUES) + list(S_T_VALUES.values())
     s_t = pd.read_csv(s_t_path, encoding="cp1250", header=None,
                       names=S_T_COLUMNS, usecols=usecols)
-    for val, status in S_T_VALUES.items():
-        s_t.loc[s_t[status] == 8, val] = np.nan
+    s_t = apply_status(s_t, S_T_VALUES)
 
     daily = s_t.groupby(KEYS).agg(
         wind_mean=("FWR", "mean"),
@@ -179,6 +188,9 @@ def build_imgw_staging(
     weather["wind_mean"] = weather["wind_mean"].fillna(weather["wind_mean_hourly"])
     weather["humidity"] = weather["humidity"].fillna(weather["humidity_hourly"])
     weather = weather.drop(columns=["wind_mean_hourly", "humidity_hourly"])
+
+    # relative humidity cannot exceed 100% (a few rounding errors in the source)
+    weather["humidity"] = weather["humidity"].clip(upper=100)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     weather.to_parquet(output_path, index=False)
