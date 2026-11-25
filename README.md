@@ -127,7 +127,7 @@ Things I found in the IMGW data:
 
 ### Other rules
 
-- I will calculate a daily average only when at least 18 hourly values (75% of the day) are there (planned for the SQL views in week 2).
+- A daily average counts only when at least 18 hourly values (75% of the day) are there. Because timestamps mark the end of the hour, I assign each hour to the day of `ts - 1 hour`, so a day covers the values stamped 01:00 to 00:00 of the next day.
 - Verified data win. Values from the GIOŚ yearly archive overwrite unverified API values for the same station and hour, but API values never overwrite archive values.
 - Loading is idempotent. Data go through a staging table and an upsert on station, pollutant and timestamp, so running the load twice doesn't create duplicates. I checked this: after a second run the table still has 1,329,333 rows.
 - Every load is logged in the `etl_run` table with its start and end time, status, number of rows and any error, so I can see whether the pipeline ran and how much it loaded.
@@ -171,6 +171,15 @@ The PostgreSQL schema is in [`sql/ddl/001_tables.sql`](sql/ddl/001_tables.sql).
 
 Measurements reference stations through a foreign key, and checks in the schema reject negative values and unknown pollutants.
 
+Two views in [`sql/ddl/002_views.sql`](sql/ddl/002_views.sql) prepare the data for analysis:
+
+| View | One row is | What it adds |
+|---|---|---|
+| `pm_daily` | one station × day | daily PM10 mean, number of hours, whether the EU daily limit (50 µg/m³) was exceeded |
+| `city_daily` | one city × day | mean of the station daily means, number of stations, weather from the matched IMGW station |
+
+The 18-hour rule drops 1,054 of 56,178 station-days (about 2%). City coverage in `city_daily` ranges from 87% of the 4,018 days in 2015–2025 (Bydgoszcz, which has no data for 2022) to over 99% (Warszawa, Łódź, Gdańsk). In Warszawa the number of stations behind the city mean changes over time (one to three), so for the ban analysis I'll use only stations with continuous data.
+
 ## Repository structure
 
 ```text
@@ -184,7 +193,7 @@ poland-air-quality/
 ├── docs/                        # diagrams, screenshots, report
 ├── notebooks/                   # exploration and analysis
 ├── sql/
-│   ├── ddl/                     # 001_tables.sql (database schema)
+│   ├── ddl/                     # 001_tables.sql (schema), 002_views.sql (daily views)
 │   └── analysis/                # analytical queries, one question per file
 ├── src/
 │   ├── gios_archive.py          # parse the GIOŚ yearly archive into Parquet
@@ -224,12 +233,13 @@ python -c "from pathlib import Path; from src.imgw import download_synop; downlo
 python -m src.imgw
 ```
 
-To create the database tables and load stations, policies, measurements, weather and the station mapping:
+To create the database, load the data and create the daily views:
 
 ```bash
 createdb airq
 psql airq -f sql/ddl/001_tables.sql
 python -m src.load
+psql airq -f sql/ddl/002_views.sql
 ```
 
 ## Roadmap
