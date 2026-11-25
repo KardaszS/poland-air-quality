@@ -102,8 +102,8 @@ I use one IMGW synoptic station per city, because synoptic stations measure all 
 | City | IMGW station | Note |
 |---|---|---|
 | Białystok | Białystok | |
-| Bydgoszcz | Toruń | The Bydgoszcz synoptic station has no daily data, so I use Toruń (about 45 km away) |
-| Gdańsk | Gdańsk-Świbno | The only Gdańsk synoptic station with daily data; it lies on the coast, east of the city |
+| Bydgoszcz | Toruń | The Bydgoszcz synoptic station has no daily data, so I use Toruń (about 40 km away) |
+| Gdańsk | Gdańsk-Świbno | The only Gdańsk synoptic station with daily data |
 | Katowice | Katowice-Muchowiec | |
 | Kraków | Kraków-Balice | |
 | Lublin | Lublin-Radawiec | |
@@ -114,6 +114,8 @@ I use one IMGW synoptic station per city, because synoptic stations measure all 
 | Warszawa | Warszawa-Okęcie | |
 
 The station list is in [`data/reference/weather_stations.csv`](data/reference/weather_stations.csv).
+
+Each GIOŚ station is matched to the IMGW station of its city, and the distance between them is stored in `station_weather_map`. Most distances are 3–15 km. The longer ones are Gdańsk (about 20 km, because Świbno is on the coast east of the city) and Bydgoszcz (about 40 km, because it uses Toruń). I take station coordinates from WMO station lists, given to the nearest minute (about 1–2 km), which is precise enough for these distances. Distances are great-circle distances (haversine formula).
 
 Things I found in the IMGW data:
 
@@ -165,7 +167,7 @@ The PostgreSQL schema is in [`sql/ddl/001_tables.sql`](sql/ddl/001_tables.sql).
 | `etl_run` | one pipeline run | yes |
 | `sensor` | one API sensor | week 3 (API) |
 | `weather_station`, `weather_daily` | one IMGW station / one station × day | yes, 11 stations and 44,194 station-days (2015–2025) |
-| `station_weather_map` | one GIOŚ station mapped to a weather station | week 2 |
+| `station_weather_map` | one GIOŚ station mapped to a weather station | yes, 15 stations |
 
 Measurements reference stations through a foreign key, and checks in the schema reject negative values and unknown pollutants.
 
@@ -187,7 +189,8 @@ poland-air-quality/
 ├── src/
 │   ├── gios_archive.py          # parse the GIOŚ yearly archive into Parquet
 │   ├── imgw.py                  # download and parse IMGW weather data into Parquet
-│   └── load.py                  # load stations, policies, measurements and weather into PostgreSQL
+│   ├── mapping.py               # match GIOŚ stations to IMGW stations and compute distances
+│   └── load.py                  # load stations, policies, measurements, weather and the station mapping into PostgreSQL
 ├── app/                         # Streamlit dashboard
 └── tests/
 ```
@@ -221,7 +224,7 @@ python -c "from pathlib import Path; from src.imgw import download_synop; downlo
 python -m src.imgw
 ```
 
-To create the database tables and load stations, policies, measurements and weather:
+To create the database tables and load stations, policies, measurements, weather and the station mapping:
 
 ```bash
 createdb airq
@@ -236,7 +239,7 @@ python -m src.load
 - [x] Download and parse GIOŚ archive 2015–2025 (hourly PM10, 15 stations)
 - [x] Load GIOŚ data into PostgreSQL
 - [x] Load IMGW weather data
-- [ ] Match weather stations to air-quality stations
+- [x] Match weather stations to air-quality stations
 - [ ] SQL analyses (exceedance days, trends, seasons, weather)
 - [ ] Daily load from the GIOŚ API (GitHub Actions)
 - [ ] Streamlit dashboard
