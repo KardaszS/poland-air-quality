@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
+from src.mapping import build_station_weather_map
 
 load_dotenv()
 engine = create_engine(os.environ["DATABASE_URL"])
@@ -55,6 +56,15 @@ UPSERT_WEATHER_STATION = text("""
         name = EXCLUDED.name,
         lat  = EXCLUDED.lat,
         lon  = EXCLUDED.lon
+""")
+
+UPSERT_STATION_WEATHER_MAP = text("""
+    INSERT INTO station_weather_map (station_code, weather_station_code, distance_km)
+    SELECT station_code, weather_station_code, distance_km
+    FROM stg_station_weather_map
+    ON CONFLICT (station_code) DO UPDATE SET
+        weather_station_code = EXCLUDED.weather_station_code,
+        distance_km          = EXCLUDED.distance_km
 """)
 
 UPSERT_WEATHER_DAILY = text("""
@@ -186,9 +196,21 @@ def load_weather(path: Path = Path("data/staging/imgw_daily.parquet")) -> int:
     return n
 
 
+def load_station_weather_map() -> int:
+    """Insert or update the GIOŚ → IMGW station mapping."""
+    df = build_station_weather_map()
+
+    with engine.begin() as conn:
+        df.to_sql("stg_station_weather_map", conn, if_exists="replace", index=False)
+        result = conn.execute(UPSERT_STATION_WEATHER_MAP)
+        conn.execute(text("DROP TABLE stg_station_weather_map"))
+    return result.rowcount
+
+
 if __name__ == "__main__":
     print("stations:", load_stations())
     print("policies:", load_policies())
     print("measurements:", load_archive())
     print("weather stations:", load_weather_stations())
     print("weather:", load_weather())
+    print("station weather map:", load_station_weather_map())

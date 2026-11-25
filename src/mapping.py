@@ -36,8 +36,9 @@ def build_station_weather_map(
         matched["lat"], matched["lon"], matched["lat_weather"], matched["lon_weather"]
     )
 
+    matched["distance_km"] = matched["distance_km"].round(1)
     return matched[["station_code", "weather_station_code", "distance_km"]]
 
-m
+
 if __name__ == "__main__":
     print(build_station_weather_map())
