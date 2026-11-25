@@ -47,11 +47,14 @@ UPSERT_MEASUREMENT = text("""
 """)
 
 UPSERT_WEATHER_STATION = text("""
-    INSERT INTO weather_station (weather_station_code, name)
-    SELECT weather_station_code, name
+    INSERT INTO weather_station (weather_station_code, name, lat, lon)
+    SELECT weather_station_code, name,
+           lat::double precision, lon::double precision
     FROM stg_weather_station
     ON CONFLICT (weather_station_code) DO UPDATE SET
-        name = EXCLUDED.name
+        name = EXCLUDED.name,
+        lat  = EXCLUDED.lat,
+        lon  = EXCLUDED.lon
 """)
 
 UPSERT_WEATHER_DAILY = text("""
